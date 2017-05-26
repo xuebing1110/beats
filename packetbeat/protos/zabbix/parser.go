@@ -130,7 +130,7 @@ func (p *parser) parse() (*message, error) {
 	if buf[bufCap-1] == '\n' {
 		msg.IsRequest = true
 	} else {
-		msg.IsRequest = true
+		msg.IsRequest = false
 	}
 
 	//dir
