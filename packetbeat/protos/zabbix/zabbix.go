@@ -115,6 +115,7 @@ func (zp *zabbixPlugin) Parse(
 	private protos.ProtocolData,
 ) protos.ProtocolData {
 	defer logp.Recover("Parse zabbixPlugin exception")
+	logp.Info("ipport:%+v", tcptuple)
 
 	conn := zp.ensureConnection(private)
 	st := conn.streams[dir]
@@ -126,7 +127,7 @@ func (zp *zabbixPlugin) Parse(
 		conn.streams[dir] = st
 	}
 
-	if err := st.parser.feed(pkt.Ts, tcptuple.IPPort(), pkt.Payload); err != nil {
+	if err := st.parser.feed(pkt.Ts, pkt.Payload); err != nil {
 		debugf("%v, dropping TCP stream for error in direction %v.", err, dir)
 		zp.onDropConnection(conn)
 		return nil
