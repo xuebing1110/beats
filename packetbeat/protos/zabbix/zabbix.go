@@ -115,7 +115,6 @@ func (zp *zabbixPlugin) Parse(
 	private protos.ProtocolData,
 ) protos.ProtocolData {
 	defer logp.Recover("Parse zabbixPlugin exception")
-	logp.Info("ipport:%+v", tcptuple)
 
 	conn := zp.ensureConnection(private)
 	st := conn.streams[dir]

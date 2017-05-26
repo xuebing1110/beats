@@ -154,12 +154,8 @@ func (p *parser) parse() (*message, error) {
 
 		//length
 		var bufLength uint64
-		buf, err = p.buf.Collect(8)
-		if err == streambuf.ErrNoMoreBytes {
-			return nil, nil
-		}
 		var reverseBuf = make([]byte, 8)
-		for i := 0; i < 8; i++ {
+		for i := 5; i < 13; i++ {
 			reverseBuf[i] = buf[7-i]
 		}
 		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
@@ -168,12 +164,7 @@ func (p *parser) parse() (*message, error) {
 		}
 		logp.Info("lenth: %d", bufLength)
 
-		buf, err = p.buf.Collect(int(bufLength))
-		if err == streambuf.ErrNoMoreBytes {
-			return nil, nil
-		}
-
-		msg.value = string(buf)
+		msg.value = string(buf[13:bufLength])
 		logp.Info("get value: %s", msg.value)
 	}
 
