@@ -147,8 +147,8 @@ func (p *parser) parse() (*message, error) {
 		logp.Info("get zabbix response...")
 
 		//head
-		logp.Info("get buf head: %s", string(buf[0:5]))
-		if !bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
+		logp.Info("get buf head: %s", string(buf[0:4]))
+		if !bytes.Equal(buf[0:5], ZABBIX_RESP_PREFIX) {
 			return nil, nil
 		}
 
