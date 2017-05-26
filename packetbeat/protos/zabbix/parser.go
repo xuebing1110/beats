@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/elastic/beats/libbeat/common/streambuf"
+	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/packetbeat/protos/applayer"
 )
 
@@ -22,7 +23,8 @@ type parser struct {
 }
 
 type parserConfig struct {
-	maxBytes int
+	maxBytes   int
+	agentPorts []int
 }
 
 type message struct {
@@ -120,13 +122,23 @@ func (p *parser) parse() (*message, error) {
 
 	isRequest := true
 	dir := applayer.NetOriginalDirection
-	if len(buf) >= 4 {
-		prefix := buf[0:4]
-		isRequest = !bytes.Equal(ZABBIX_RESP_PREFIX, prefix)
 
-		if !isRequest {
-			dir = applayer.NetReverseDirection
+	found := false
+	for _, port := range p.config.agentPorts {
+		if uint16(port) == msg.Tuple.DstPort {
+			found = true
+			break
 		}
+	}
+	isRequest = found
+	if !isRequest {
+		dir = applayer.NetReverseDirection
+	}
+
+	if len(buf) >= 4 {
+		logp.Info("get buf: %s", string(buf))
+		prefix := buf[1:5]
+		msg.failed = !bytes.Equal(ZABBIX_RESP_PREFIX, prefix)
 		buf = buf[1:]
 	}
 

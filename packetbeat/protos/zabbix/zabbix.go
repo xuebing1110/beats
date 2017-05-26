@@ -82,6 +82,7 @@ func (zp *zabbixPlugin) setFromConfig(config *zabbixConfig) error {
 	// set parser configuration
 	parser := &zp.parserConfig
 	parser.maxBytes = tcp.TCPMaxDataInStream
+	parser.agentPorts = config.Ports
 
 	// set transaction correlator configuration
 	trans := &zp.transConfig
