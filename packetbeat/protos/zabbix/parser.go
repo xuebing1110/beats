@@ -2,16 +2,25 @@ package zabbix
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"time"
 
+	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/common/streambuf"
 	"github.com/elastic/beats/libbeat/logp"
+
 	"github.com/elastic/beats/packetbeat/protos/applayer"
 )
 
 var (
-	ZABBIX_RESP_PREFIX []byte = []byte("ZBXD")
+	ZABBIX_RESP_PREFIX []byte = []byte{
+		0x5a,
+		0x42,
+		0x58,
+		0x44,
+		0x01,
+	}
 )
 
 type parser struct {
@@ -70,7 +79,7 @@ func (p *parser) append(data []byte) error {
 	return nil
 }
 
-func (p *parser) feed(ts time.Time, data []byte) error {
+func (p *parser) feed(ts time.Time, tuple *common.IPPortTuple, data []byte) error {
 	if err := p.append(data); err != nil {
 		return err
 	}
@@ -80,6 +89,7 @@ func (p *parser) feed(ts time.Time, data []byte) error {
 			// allocate new message object to be used by parser with current timestamp
 			p.message = p.newMessage(ts)
 		}
+		p.message.Tuple = *tuple
 
 		msg, err := p.parse()
 		if err != nil {
@@ -111,38 +121,67 @@ func (p *parser) newMessage(ts time.Time) *message {
 }
 
 func (p *parser) parse() (*message, error) {
-	// wait for message being complete
-	buf, err := p.buf.CollectUntil([]byte{'\n'})
-	if err == streambuf.ErrNoMoreBytes {
-		return nil, nil
-	}
-
 	msg := p.message
-	msg.Size = uint64(p.buf.BufferConsumed())
 
-	isRequest := true
-	dir := applayer.NetOriginalDirection
-
-	found := false
+	//check wether it is response
+	resp_found := false
+	logp.Info("ports compare: %+v <=> %+v", p.config.agentPorts, msg.Tuple)
 	for _, port := range p.config.agentPorts {
-		if uint16(port) == msg.Tuple.DstPort {
-			found = true
+		if uint16(port) == msg.Tuple.SrcPort {
+			resp_found = true
 			break
 		}
 	}
-	isRequest = found
+
+	//get reponse body
+	var buf []byte
+	if resp_found {
+		logp.Info("get zabbix response...")
+		var err error
+
+		//head
+		buf, err = p.buf.Collect(5)
+		if err == streambuf.ErrNoMoreBytes {
+			return nil, nil
+		}
+		logp.Info("get buf head: %s", string(buf[0:4]))
+		if !bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
+			return nil, nil
+		}
+
+		//length
+		var bufLength uint64
+		buf, err = p.buf.Collect(8)
+		if err == streambuf.ErrNoMoreBytes {
+			return nil, nil
+		}
+		var reverseBuf = make([]byte, 8)
+		for i := 0; i < 8; i++ {
+			reverseBuf[i] = buf[7-i]
+		}
+		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+		if err != nil {
+			return nil, err
+		}
+		logp.Info("lenth: %d", bufLength)
+
+		buf, err = p.buf.Collect(int(bufLength))
+		if err == streambuf.ErrNoMoreBytes {
+			return nil, nil
+		}
+
+		logp.Info("get buf: %s", string(buf))
+	}
+
+	isRequest := !resp_found
+	dir := applayer.NetOriginalDirection
 	if !isRequest {
 		dir = applayer.NetReverseDirection
 	}
 
-	if len(buf) >= 4 {
-		logp.Info("get buf: %s", string(buf))
-		prefix := buf[1:5]
-		msg.failed = !bytes.Equal(ZABBIX_RESP_PREFIX, prefix)
-		buf = buf[1:]
-	}
-
 	// msg.content = common.NetString(buf)
+	msg.value = string(buf)
+	msg.Size = uint64(p.buf.BufferConsumed())
 	msg.IsRequest = isRequest
 	msg.Direction = dir
 
