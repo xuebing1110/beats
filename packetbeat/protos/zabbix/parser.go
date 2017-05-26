@@ -155,8 +155,8 @@ func (p *parser) parse() (*message, error) {
 		//length
 		var bufLength uint64
 		var reverseBuf = make([]byte, 8)
-		for i := 12; i >= 5; i-- {
-			reverseBuf[i-5] = buf[i]
+		for i := 0; i < 8; i++ {
+			reverseBuf[i] = buf[12-i]
 		}
 		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
 		if err != nil {
