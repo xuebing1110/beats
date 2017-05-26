@@ -164,7 +164,7 @@ func (p *parser) parse() (*message, error) {
 		}
 		logp.Info("lenth: %d", bufLength)
 
-		msg.value = string(buf[13:bufLength])
+		msg.value = string(buf[13 : 14+bufLength])
 		logp.Info("get value: %s", msg.value)
 	}
 
