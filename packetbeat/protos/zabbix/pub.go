@@ -46,7 +46,7 @@ func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
 		"status":       status,
 		"responsetime": responseTime,
 		"host":         requ.Tuple.DstIP.String(),
-		"item":         resp.item,
+		"item":         requ.item,
 		"value":        resp.value,
 		"failed":       resp.failed,
 	}

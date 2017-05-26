@@ -138,6 +138,7 @@ func (p *parser) parse() (*message, error) {
 	if !msg.IsRequest {
 		dir = applayer.NetReverseDirection
 	}
+	msg.Direction = dir
 
 	//get reponse body
 	if msg.IsRequest {
@@ -170,7 +171,6 @@ func (p *parser) parse() (*message, error) {
 
 	// msg.content = common.NetString(buf)
 	msg.Size = uint64(p.buf.BufferConsumed())
-	msg.Direction = dir
 
 	return msg, nil
 
