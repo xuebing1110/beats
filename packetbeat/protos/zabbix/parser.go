@@ -142,7 +142,7 @@ func (p *parser) parse() (*message, error) {
 
 	//get reponse body
 	if msg.IsRequest {
-		msg.item = string(bytes.TrimSuffix(buf, '\n'))
+		msg.item = buf[:bufCap-1]
 		logp.Info("get zabbix request:%s", msg.item)
 	} else {
 		logp.Info("get zabbix response...")
