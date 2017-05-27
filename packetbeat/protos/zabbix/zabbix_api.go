@@ -42,7 +42,7 @@ func (zapi *zabbixAPI) getItemValueType(item string) (vt ValueType) {
 	}
 
 	//read
-	zapi.itemRWLock.Unlock()
+	zapi.itemRWLock.RUnlock()
 	zapi.itemRWLock.Lock()
 	defer zapi.itemRWLock.Unlock()
 
