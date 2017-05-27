@@ -41,6 +41,7 @@ func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
 		"ip":           requ.Tuple.DstIP.String(),
 		"item":         requ.item,
 		"value":        resp.value,
+		"reason":       resp.reason,
 	}
 
 	// add processing notes/errors to event
