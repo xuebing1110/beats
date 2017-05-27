@@ -81,10 +81,10 @@ func GetItemByKey(api *zabbix.API, item string) (map[string]interface{}, error) 
 		return nil, &response.Error
 	}
 
-	items, ok := response.Result.([]map[string]interface{})
+	items, ok := response.Result.([]interface{})
 	if !ok {
 		return nil, &zabbix.ZabbixError{0, "", "can't convert to []map[string]interface{}"}
 	}
 
-	return items[0], nil
+	return items[0].(map[string]interface{}), nil
 }
