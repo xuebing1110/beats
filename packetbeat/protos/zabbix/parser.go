@@ -136,7 +136,7 @@ func pred(b byte) bool {
 func (p *parser) parse() (*message, error) {
 	buf, err := p.buf.CollectWhile(pred)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	//msg type
@@ -167,7 +167,7 @@ func (p *parser) parse() (*message, error) {
 		var bufLength uint64
 		length_buf, err := p.buf.Collect(8)
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		var reverseBuf = make([]byte, 8)
 		for i := 0; i < 8; i++ {
@@ -182,7 +182,7 @@ func (p *parser) parse() (*message, error) {
 		//data
 		value_bytes, err := p.buf.Collect(int(bufLength))
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
 			note := string(value_bytes[17:])
