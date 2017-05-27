@@ -27,7 +27,7 @@ func newZabbixAPI(url, user, pwd string) (zapi *zabbixAPI, err error) {
 	zapi = &zabbixAPI{
 		itemValueType: make(map[string]ValueType),
 	}
-	zapi.api, err = zabbix.NewAPI(url, url, pwd)
+	zapi.api, err = zabbix.NewAPI(url, user, pwd)
 	if err != nil {
 		return
 	}
