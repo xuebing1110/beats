@@ -124,7 +124,8 @@ func (p *parser) newMessage(ts time.Time) *message {
 
 func (p *parser) parse() (*message, error) {
 	bufCap := p.buf.Cap()
-	buf := p.buf.Bytes()
+	buf := p.buf.BufferedBytes()
+	p.buf.Advance(len(buf))
 
 	//msg type
 	msg := p.message
