@@ -95,6 +95,7 @@ func (p *parser) feed(ts time.Time, data []byte) error {
 
 		msg, err := p.parse()
 		if err != nil {
+			logp.Err("parse err:%v", err)
 			return err
 		}
 		if msg == nil {
