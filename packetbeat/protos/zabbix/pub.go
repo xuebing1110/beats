@@ -24,31 +24,23 @@ func (pub *transPub) onTransaction(requ, resp *message) error {
 }
 
 func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
-	status := common.OK_STATUS
-
 	// resp_time in milliseconds
 	responseTime := int32(resp.Ts.Sub(requ.Ts).Nanoseconds() / 1e6)
 
-	// src := &common.Endpoint{
-	// 	IP:   requ.Tuple.SrcIP.String(),
-	// 	Port: requ.Tuple.SrcPort,
-	// 	Proc: string(requ.CmdlineTuple.Src),
-	// }
-	// dst := &common.Endpoint{
-	// 	IP:   requ.Tuple.DstIP.String(),
-	// 	Port: requ.Tuple.DstPort,
-	// 	Proc: string(requ.CmdlineTuple.Dst),
-	// }
+	//status
+	status := resp.status
+	if status == "" {
+		status = common.ERROR_STATUS
+	}
 
 	event := common.MapStr{
 		"@timestamp":   common.Time(requ.Ts),
 		"type":         "zabbix",
 		"status":       status,
 		"responsetime": responseTime,
-		"host":         requ.Tuple.DstIP.String(),
+		"ip":           requ.Tuple.DstIP.String(),
 		"item":         requ.item,
 		"value":        resp.value,
-		"failed":       resp.failed,
 	}
 
 	// add processing notes/errors to event

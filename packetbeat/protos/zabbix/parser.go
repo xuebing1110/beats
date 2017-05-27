@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/elastic/beats/libbeat/common"
+	// "strings"
 	"time"
 
 	"github.com/elastic/beats/libbeat/common/streambuf"
@@ -20,6 +22,8 @@ var (
 		0x44,
 		0x01,
 	}
+
+	ZBX_NOTSUPPORTED []byte = []byte("ZBX_NOTSUPPORTED")
 )
 
 type parser struct {
@@ -42,9 +46,10 @@ type message struct {
 	// (if false) to be merged to generate full message.
 	isComplete bool
 
-	failed bool
+	status string
 	item   string
 	value  interface{}
+	reason string
 
 	// list element use by 'transactions' for correlation
 	next *message
@@ -142,6 +147,7 @@ func (p *parser) parse() (*message, error) {
 
 	//get reponse body
 	if msg.IsRequest {
+		msg.status = common.OK_STATUS
 		msg.item = string(buf[:bufCap-1])
 		logp.Info("get zabbix request:%s", msg.item)
 	} else {
@@ -165,8 +171,17 @@ func (p *parser) parse() (*message, error) {
 		}
 		logp.Info("lenth: %d", bufLength)
 
-		msg.value = string(buf[13 : 13+bufLength])
-		logp.Info("get value: %s", msg.value)
+		//data
+		value_bytes := buf[13 : 13+bufLength]
+		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
+			msg.status = common.CLIENT_ERROR_STATUS
+			msg.reason = string(value_bytes[17:])
+			logp.Info("get error: %s", msg.reason)
+		} else {
+			msg.status = common.OK_STATUS
+			msg.value = string(value_bytes)
+			logp.Info("get value: %s", msg.value)
+		}
 	}
 
 	// msg.content = common.NetString(buf)
