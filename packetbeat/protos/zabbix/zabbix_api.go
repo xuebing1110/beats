@@ -86,5 +86,9 @@ func GetItemByKey(api *zabbix.API, item string) (map[string]interface{}, error) 
 		return nil, &zabbix.ZabbixError{0, "", "can't convert to []map[string]interface{}"}
 	}
 
-	return items[0].(map[string]interface{}), nil
+	if len(items) == 0 {
+		return nil, &zabbix.ZabbixError{0, "", "can't get zabbix item:" + item}
+	} else {
+		return items[0].(map[string]interface{}), nil
+	}
 }
