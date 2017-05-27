@@ -11,6 +11,7 @@ type transPub struct {
 	sendResponse bool
 
 	results publish.Transactions
+	zapi    *zabbixAPI
 }
 
 func (pub *transPub) onTransaction(requ, resp *message) error {
@@ -41,6 +42,19 @@ func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
 		"ip":           requ.Tuple.DstIP.String(),
 		"item":         requ.item,
 		"value":        resp.value,
+	}
+	if pub.zapi == nil {
+		event["value"] = resp.value
+	} else {
+		vt := pub.zapi.getItemValueType(requ.item)
+		switch vt {
+		case VALUE_TYPE_FLOAT:
+			event["value_number"] = resp.value
+		case VALUE_TYPE_UINT:
+			event["value_number"] = resp.value
+		default:
+			event["value_str"] = resp.value
+		}
 	}
 
 	// add processing notes/errors to event

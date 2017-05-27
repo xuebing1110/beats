@@ -69,6 +69,7 @@ func (zp *zabbixPlugin) init(results publish.Transactions, config *zabbixConfig)
 	zp.pub.results = results
 
 	isDebug = logp.IsDebug("http")
+
 	return nil
 }
 
@@ -92,6 +93,15 @@ func (zp *zabbixPlugin) setFromConfig(config *zabbixConfig) error {
 	pub := &zp.pub
 	pub.sendRequest = config.SendRequest
 	pub.sendResponse = config.SendResponse
+
+	// zabbix api
+	if config.ApiUrl != "" {
+		var err error
+		pub.zapi, err = newZabbixAPI(config.ApiUrl, config.User, config.Password)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

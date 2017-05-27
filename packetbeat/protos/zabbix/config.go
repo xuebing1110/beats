@@ -7,6 +7,9 @@ import (
 
 type zabbixConfig struct {
 	config.ProtocolCommon `config:",inline"`
+	ApiUrl                string `config:"api_url"`
+	User                  string `config:"user"`
+	Password              string `config:"password"`
 }
 
 var (
