@@ -49,7 +49,6 @@ type message struct {
 	status string
 	item   string
 	value  interface{}
-	reason string
 
 	// list element use by 'transactions' for correlation
 	next *message
@@ -174,9 +173,10 @@ func (p *parser) parse() (*message, error) {
 		//data
 		value_bytes := buf[13 : 13+bufLength]
 		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
+			note := string(value_bytes[17:])
+			msg.Notes = append(msg.Notes, note)
 			msg.status = common.CLIENT_ERROR_STATUS
-			msg.reason = string(value_bytes[17:])
-			logp.Info("get error: %s", msg.reason)
+			logp.Info("get note: %s", note)
 		} else {
 			msg.status = common.OK_STATUS
 			msg.value = string(value_bytes)
