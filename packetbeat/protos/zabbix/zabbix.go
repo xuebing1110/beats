@@ -142,7 +142,7 @@ func (zp *zabbixPlugin) Parse(
 	}
 
 	if err := st.parser.feed(pkt.Ts, pkt.Payload); err != nil {
-		debugf("%v, dropping TCP stream for error in direction %v.", err, dir)
+		logp.Warn("%v, dropping TCP stream for error in direction %v.", err, dir)
 		zp.onDropConnection(conn)
 		return nil
 	}
