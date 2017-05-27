@@ -66,7 +66,7 @@ func (zapi *zabbixAPI) getItemValueType(item string) (vt ValueType) {
 	return
 }
 
-func GetItemByKey(api *zabbix.API, item string) (map[string]string, error) {
+func GetItemByKey(api *zabbix.API, item string) (map[string]interface{}, error) {
 	params := make(map[string]interface{}, 0)
 	filter := map[string]string{"key_": item}
 	params["filter"] = filter
@@ -81,9 +81,9 @@ func GetItemByKey(api *zabbix.API, item string) (map[string]string, error) {
 		return nil, &response.Error
 	}
 
-	items, ok := response.Result.([]map[string]string)
+	items, ok := response.Result.([]map[string]inteface{})
 	if !ok {
-		return nil, &zabbix.ZabbixError{0, "", "can't convert to []map[string]string"}
+		return nil, &zabbix.ZabbixError{0, "", "can't convert to []map[string]interface{}"}
 	}
 
 	return items[0], nil
