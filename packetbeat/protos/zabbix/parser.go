@@ -133,10 +133,6 @@ func pred(b byte) bool {
 }
 
 func (p *parser) parse() (*message, error) {
-	// bufCap := p.buf.Cap()
-	// buf := p.buf.BufferedBytes()
-	// p.buf.Advance(len(buf))
-
 	buf, err := p.buf.CollectWhile(pred)
 	if err != nil {
 		return nil, nil
