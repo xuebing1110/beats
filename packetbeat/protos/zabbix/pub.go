@@ -43,24 +43,26 @@ func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
 		"ip":           requ.Tuple.DstIP.String(),
 		"item":         requ.item,
 	}
-	if pub.zapi == nil {
-		event["value"] = resp.value
-	} else {
-		var parse_err error
-		vt := pub.zapi.getItemValueType(requ.item)
-		switch vt {
-		case VALUE_TYPE_FLOAT:
-			event["value_number"], parse_err = strconv.ParseFloat(resp.value.(string), 10)
-			if parse_err != nil {
-				event["value"] = resp.value
+	if status == common.OK_STATUS {
+		if pub.zapi == nil {
+			event["value"] = resp.value
+		} else {
+			var parse_err error
+			vt := pub.zapi.getItemValueType(requ.item)
+			switch vt {
+			case VALUE_TYPE_FLOAT:
+				event["value_number"], parse_err = strconv.ParseFloat(resp.value.(string), 10)
+				if parse_err != nil {
+					event["value"] = resp.value
+				}
+			case VALUE_TYPE_UINT:
+				event["value_number"], parse_err = strconv.Atoi(resp.value.(string))
+				if parse_err != nil {
+					event["value"] = resp.value
+				}
+			default:
+				event["value_str"] = resp.value
 			}
-		case VALUE_TYPE_UINT:
-			event["value_number"], parse_err = strconv.Atoi(resp.value.(string))
-			if parse_err != nil {
-				event["value"] = resp.value
-			}
-		default:
-			event["value_str"] = resp.value
 		}
 	}
 

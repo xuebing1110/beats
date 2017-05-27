@@ -124,17 +124,14 @@ func (p *parser) newMessage(ts time.Time) *message {
 
 func (p *parser) parse() (*message, error) {
 	bufCap := p.buf.Cap()
-	buf, err := p.buf.Collect(bufCap)
-	if err == streambuf.ErrNoMoreBytes {
-		return nil, nil
-	}
+	buf := p.buf.Bytes()
 
 	//msg type
 	msg := p.message
-	if buf[bufCap-1] == '\n' {
-		msg.IsRequest = true
-	} else {
+	if bufCap >= 5 && bytes.Equal(buf[0:5], ZABBIX_RESP_PREFIX) {
 		msg.IsRequest = false
+	} else {
+		msg.IsRequest = true
 	}
 
 	//dir
@@ -150,13 +147,8 @@ func (p *parser) parse() (*message, error) {
 		msg.item = string(buf[:bufCap-1])
 		logp.Info("get zabbix request:%s", msg.item)
 	} else {
-		logp.Info("get zabbix response...")
-
 		//head
 		logp.Info("get buf head: %s", string(buf[0:4]))
-		if !bytes.Equal(buf[0:5], ZABBIX_RESP_PREFIX) {
-			return nil, nil
-		}
 
 		//length
 		var bufLength uint64
@@ -164,7 +156,7 @@ func (p *parser) parse() (*message, error) {
 		for i := 0; i < 8; i++ {
 			reverseBuf[i] = buf[12-i]
 		}
-		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+		err := binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
 		if err != nil {
 			return nil, err
 		}
