@@ -60,7 +60,7 @@ func (zapi *zabbixAPI) getItemValueType(item string) (vt ValueType) {
 		logp.Err("get item error from zabbix api:%v", err)
 		vt = VALUE_TYPE_UNKNOWN
 	} else {
-		vt = ValueType(itemInfo["value_type"])
+		vt = ValueType(itemInfo["value_type"].(string))
 	}
 
 	return
@@ -81,7 +81,7 @@ func GetItemByKey(api *zabbix.API, item string) (map[string]interface{}, error) 
 		return nil, &response.Error
 	}
 
-	items, ok := response.Result.([]map[string]inteface{})
+	items, ok := response.Result.([]map[string]interface{})
 	if !ok {
 		return nil, &zabbix.ZabbixError{0, "", "can't convert to []map[string]interface{}"}
 	}
