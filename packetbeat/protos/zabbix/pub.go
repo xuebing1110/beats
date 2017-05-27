@@ -3,6 +3,7 @@ package zabbix
 import (
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/packetbeat/publish"
+	"strconv"
 )
 
 // Transaction Publisher.
@@ -41,17 +42,23 @@ func (pub *transPub) createEvent(requ, resp *message) common.MapStr {
 		"responsetime": responseTime,
 		"ip":           requ.Tuple.DstIP.String(),
 		"item":         requ.item,
-		"value":        resp.value,
 	}
 	if pub.zapi == nil {
 		event["value"] = resp.value
 	} else {
+		var parse_err error
 		vt := pub.zapi.getItemValueType(requ.item)
 		switch vt {
 		case VALUE_TYPE_FLOAT:
-			event["value_number"] = resp.value
+			event["value_number"], parse_err = strconv.ParseFloat(resp.value.(string), 10)
+			if parse_err != nil {
+				event["value"] = resp.value
+			}
 		case VALUE_TYPE_UINT:
-			event["value_number"] = resp.value
+			event["value_number"], parse_err = strconv.Atoi(resp.value.(string))
+			if parse_err != nil {
+				event["value"] = resp.value
+			}
 		default:
 			event["value_str"] = resp.value
 		}

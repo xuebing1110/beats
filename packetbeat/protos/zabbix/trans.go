@@ -143,8 +143,8 @@ func (trans *transactions) correlate() error {
 	// drop responses with missing requests
 	if requests.empty() {
 		for !responses.empty() {
-			logp.Warn("Response from unknown transaction. Ignoring.")
-			responses.pop()
+			msg := responses.pop()
+			logp.Warn("Response from unknown transaction. Ignoring %+v", msg)
 		}
 		return nil
 	}
