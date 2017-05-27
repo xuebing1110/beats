@@ -122,14 +122,29 @@ func (p *parser) newMessage(ts time.Time) *message {
 	}
 }
 
+func pred(b byte) bool {
+	if b == '\n' {
+		return false
+	} else if b == 0x01 {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (p *parser) parse() (*message, error) {
-	bufCap := p.buf.Cap()
-	buf := p.buf.BufferedBytes()
-	p.buf.Advance(len(buf))
+	// bufCap := p.buf.Cap()
+	// buf := p.buf.BufferedBytes()
+	// p.buf.Advance(len(buf))
+
+	buf, err := p.buf.CollectWhile(pred)
+	if err != nil {
+		return nil, nil
+	}
 
 	//msg type
 	msg := p.message
-	if bufCap >= 5 && bytes.Equal(buf[0:5], ZABBIX_RESP_PREFIX) {
+	if bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
 		msg.IsRequest = false
 	} else {
 		msg.IsRequest = true
@@ -145,7 +160,7 @@ func (p *parser) parse() (*message, error) {
 	//get reponse body
 	if msg.IsRequest {
 		msg.status = common.OK_STATUS
-		msg.item = string(buf[:bufCap-1])
+		msg.item = string(buf[:len(buf)-1])
 		logp.Info("get zabbix request:%s", msg.item)
 	} else {
 		//head
@@ -153,18 +168,25 @@ func (p *parser) parse() (*message, error) {
 
 		//length
 		var bufLength uint64
+		length_buf, err := p.buf.Collect(8)
+		if err != nil {
+			return nil, nil
+		}
 		var reverseBuf = make([]byte, 8)
 		for i := 0; i < 8; i++ {
-			reverseBuf[i] = buf[12-i]
+			reverseBuf[i] = length_buf[7-i]
 		}
-		err := binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
 		if err != nil {
 			return nil, err
 		}
 		logp.Info("lenth: %d", bufLength)
 
 		//data
-		value_bytes := buf[13 : 13+bufLength]
+		value_bytes, err := p.buf.Collect(int(bufLength))
+		if err != nil {
+			return nil, nil
+		}
 		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
 			note := string(value_bytes[17:])
 			msg.Notes = append(msg.Notes, note)
