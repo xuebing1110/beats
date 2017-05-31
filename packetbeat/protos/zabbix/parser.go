@@ -23,7 +23,9 @@ var (
 		0x01,
 	}
 
-	ZBX_NOTSUPPORTED []byte = []byte("ZBX_NOTSUPPORTED")
+	ZBX_NOTSUPPORTED            []byte = []byte("ZBX_NOTSUPPORTED")
+	ZBX_ACTIVEDATA_REQ_FREPFIX  []byte = []byte(`{"request":`)
+	ZBX_ACTIVEDATA_RESP_FREPFIX []byte = []byte(`{"response":`)
 )
 
 type parser struct {
@@ -46,9 +48,10 @@ type message struct {
 	// (if false) to be merged to generate full message.
 	isComplete bool
 
+	passive bool
+
 	status string
-	item   string
-	value  interface{}
+	data   []byte
 
 	// list element use by 'transactions' for correlation
 	next *message
@@ -139,12 +142,35 @@ func (p *parser) parse() (*message, error) {
 		return nil, err
 	}
 
+	//data
+
 	//msg type
 	msg := p.message
 	if bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
-		msg.IsRequest = false
+		data, status, err := getData(p.buf)
+		if err != nil {
+			return msg, err
+		}
+
+		msg.data = data
+		msg.status = status
+
+		if bytes.HasPrefix(data, ZBX_ACTIVEDATA_REQ_FREPFIX) {
+			msg.IsRequest = true
+			msg.passive = false
+		} else if bytes.HasPrefix(data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
+			msg.IsRequest = false
+			msg.passive = false
+		} else {
+			msg.passive = true
+			msg.IsRequest = false
+		}
 	} else {
 		msg.IsRequest = true
+		msg.passive = true
+
+		msg.data = buf[:len(buf)-1]
+		msg.status = common.OK_STATUS
 	}
 
 	//dir
@@ -154,51 +180,38 @@ func (p *parser) parse() (*message, error) {
 	}
 	msg.Direction = dir
 
-	//get reponse body
-	if msg.IsRequest {
-		msg.status = common.OK_STATUS
-		msg.item = string(buf[:len(buf)-1])
-		logp.Info("get zabbix request:%s", msg.item)
-	} else {
-		//head
-		logp.Info("get buf head: %s", string(buf[0:4]))
-
-		//length
-		var bufLength uint64
-		length_buf, err := p.buf.Collect(8)
-		if err != nil {
-			return nil, err
-		}
-		var reverseBuf = make([]byte, 8)
-		for i := 0; i < 8; i++ {
-			reverseBuf[i] = length_buf[7-i]
-		}
-		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
-		if err != nil {
-			return nil, err
-		}
-		logp.Info("lenth: %d", bufLength)
-
-		//data
-		value_bytes, err := p.buf.Collect(int(bufLength))
-		if err != nil {
-			return nil, err
-		}
-		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
-			note := string(value_bytes[17:])
-			msg.Notes = append(msg.Notes, note)
-			msg.status = common.CLIENT_ERROR_STATUS
-			logp.Info("get note: %s", note)
-		} else {
-			msg.status = common.OK_STATUS
-			msg.value = string(value_bytes)
-			logp.Info("get value: %s", msg.value)
-		}
-	}
-
 	// msg.content = common.NetString(buf)
 	msg.Size = uint64(p.buf.BufferConsumed())
 
 	return msg, nil
 
+}
+
+func getData(buf streambuf.Buffer) ([]byte, string, error) {
+	//length
+	var bufLength uint64
+	length_buf, err := buf.Collect(8)
+	if err != nil {
+		return nil, common.SERVER_ERROR_STATUS, err
+	}
+	var reverseBuf = make([]byte, 8)
+	for i := 0; i < 8; i++ {
+		reverseBuf[i] = length_buf[7-i]
+	}
+	err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+	if err != nil {
+		return nil, common.SERVER_ERROR_STATUS, err
+	}
+
+	//data
+	value_bytes, err := buf.Collect(int(bufLength))
+	if err != nil {
+		return nil, common.SERVER_ERROR_STATUS, err
+	}
+
+	if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
+		return value_bytes[17:], common.CLIENT_ERROR_STATUS, nil
+	} else {
+		return value_bytes, common.OK_STATUS, nil
+	}
 }

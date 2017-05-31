@@ -131,11 +131,6 @@ func (zp *zabbixPlugin) Parse(
 	if st == nil {
 		st = &stream{}
 		st.parser.init(&zp.parserConfig, func(msg *message) error {
-			if msg.IsRequest {
-				logp.Info("%s:%d => %s:%d :: %s", tcptuple.SrcIP.String(), tcptuple.SrcPort, tcptuple.DstIP.String(), tcptuple.DstPort, msg.item)
-			} else {
-				logp.Info("%s:%d => %s:%d :: %v", tcptuple.SrcIP.String(), tcptuple.SrcPort, tcptuple.DstIP.String(), tcptuple.DstPort, msg.value)
-			}
 			return conn.trans.onMessage(tcptuple.IPPort(), dir, msg)
 		})
 		conn.streams[dir] = st
