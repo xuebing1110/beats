@@ -1,11 +1,16 @@
 package zabbix
 
 import (
+	"bytes"
 	"github.com/elastic/beats/libbeat/common"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/packetbeat/publish"
 	"strconv"
 	"time"
+)
+
+var (
+	ZBX_NOTSUPPORTED []byte = []byte("ZBX_NOTSUPPORTED")
 )
 
 // Transaction Publisher.
@@ -33,12 +38,7 @@ func (pub *transPub) createEvents(requ, resp *message) []common.MapStr {
 	// resp_time in milliseconds
 	responseTime := int32(resp.Ts.Sub(requ.Ts).Nanoseconds() / 1e6)
 
-	//status
-	status := resp.status
-	if status == "" {
-		status = common.ERROR_STATUS
-	}
-
+	//events
 	events := make([]common.MapStr, 0)
 
 	//passive
@@ -49,12 +49,17 @@ func (pub *transPub) createEvents(requ, resp *message) []common.MapStr {
 		event := common.MapStr{
 			"@timestamp":   common.Time(requ.Ts),
 			"type":         "zabbix",
-			"status":       status,
+			"status":       common.OK_STATUS,
 			"responsetime": responseTime,
 			"ip":           requ.Tuple.DstIP.String(),
 			"item":         string(requ.data),
 		}
-		if status == common.OK_STATUS {
+		if bytes.HasPrefix(resp.data, ZBX_NOTSUPPORTED) {
+			if len(resp.data) > 0 {
+				notes = append(notes, string(resp.data[17:]))
+				event["status"] = common.CLIENT_ERROR_STATUS
+			}
+		} else {
 			value := string(resp.data)
 			if pub.zapi == nil {
 				event["value"] = value
@@ -63,13 +68,7 @@ func (pub *transPub) createEvents(requ, resp *message) []common.MapStr {
 				value_type, value_content := getSchemaByZapi(pub.zapi, item, value)
 				event[value_type] = value_content
 			}
-		} else {
-			if len(requ.data) > 0 {
-				notes = append(notes, string(requ.data))
-			}
-			if len(resp.data) > 0 {
-				notes = append(notes, string(resp.data))
-			}
+
 		}
 
 		// add processing notes/errors to event

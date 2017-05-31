@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/elastic/beats/libbeat/common"
+	// "github.com/elastic/beats/libbeat/common"
 	// "strings"
 	"time"
 
@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ZABBIX_RESP_PREFIX []byte = []byte{
+	ZABBIX_HEADER_PREFIX []byte = []byte{
 		0x5a,
 		0x42,
 		0x58,
@@ -23,7 +23,6 @@ var (
 		0x01,
 	}
 
-	ZBX_NOTSUPPORTED            []byte = []byte("ZBX_NOTSUPPORTED")
 	ZBX_ACTIVEDATA_REQ_FREPFIX  []byte = []byte(`{"request":`)
 	ZBX_ACTIVEDATA_RESP_FREPFIX []byte = []byte(`{"response":`)
 )
@@ -50,6 +49,7 @@ type message struct {
 
 	passive bool
 
+	length int
 	status string
 	data   []byte
 
@@ -137,62 +137,56 @@ func pred(b byte) bool {
 }
 
 func (p *parser) parse() (*message, error) {
-	buf, err := p.buf.CollectWhile(pred)
+	buf, err := p.buf.Collect(p.buf.Cap())
 	if err != nil {
 		logp.Info("get %s from %d bytes,err:%v", string(buf), p.buf.Cap(), err)
 		return nil, err
 	}
 
-	//msg type
 	msg := p.message
-	if bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
-		//length
-		var bufLength uint64
-		length_buf, err := p.buf.Collect(8)
-		if err != nil {
-			return nil, err
-		}
-		var reverseBuf = make([]byte, 8)
-		for i := 0; i < 8; i++ {
-			reverseBuf[i] = length_buf[7-i]
-		}
-		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+
+	// the first packet
+	if bytes.Equal(buf, ZABBIX_HEADER_PREFIX) {
+		// data length
+		data_len, err := getDataLength(buf[5:13])
 		if err != nil {
 			return nil, err
 		}
 
-		//data
-		value_bytes, err := p.buf.Collect(int(bufLength))
-		if err != nil {
-			logp.Info("get length:%d, err:%v", int(bufLength), err)
-			return nil, err
-		}
+		// save to message
+		msg.length = data_len
+		msg.data = buf[13:]
 
-		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
-			msg.data = value_bytes[17:]
-			msg.status = common.CLIENT_ERROR_STATUS
+		// the part of whole message
+		if p.buf.BufferConsumed()+msg.length > len(buf) {
+			logp.Info("get a part of message: %s", string(msg.data))
 		} else {
-			msg.data = value_bytes
-			msg.status = common.OK_STATUS
+			logp.Info("get a whole message: %s", string(msg.data))
+			msg.isComplete = true
 		}
 
-		//IsRequest and mode
+		// request or response
 		if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_REQ_FREPFIX) {
-			msg.IsRequest = true
-			msg.passive = false
-		} else if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
-			msg.IsRequest = false
-			msg.passive = false
-		} else {
-			msg.IsRequest = false
 			msg.passive = true
+			msg.IsRequest = true
+		} else if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
+			msg.passive = true
+			msg.IsRequest = true
+		} else {
+			msg.passive = false
+			msg.IsRequest = false
 		}
-	} else {
+	} else if buf[len(buf)-1] == '\n' {
 		msg.IsRequest = true
 		msg.passive = true
-
 		msg.data = buf[:len(buf)-1]
-		msg.status = common.OK_STATUS
+		logp.Info("get passive request: %s", string(msg.data))
+	} else {
+		// the other parts of message
+		msg.IsRequest = true
+		msg.passive = false
+		msg.data = buf
+		logp.Info("get a part of active request message: %s", string(msg.data))
 	}
 
 	//dir
@@ -202,39 +196,25 @@ func (p *parser) parse() (*message, error) {
 	}
 	msg.Direction = dir
 
-	// msg.content = common.NetString(buf)
+	//size
 	msg.Size = uint64(p.buf.BufferConsumed())
 
 	return msg, nil
-
 }
 
-func getData(buf streambuf.Buffer) ([]byte, string, error) {
-	//length
-	var bufLength uint64
-	length_buf, err := buf.Collect(8)
-	if err != nil {
-		return nil, common.SERVER_ERROR_STATUS, err
-	}
+func getDataLength(buf []byte) (int, error) {
+	// reserve
 	var reverseBuf = make([]byte, 8)
 	for i := 0; i < 8; i++ {
-		reverseBuf[i] = length_buf[7-i]
-	}
-	err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
-	if err != nil {
-		return nil, common.SERVER_ERROR_STATUS, err
+		reverseBuf[i] = buf[7-i]
 	}
 
-	//data
-	value_bytes, err := buf.Collect(int(bufLength))
+	//convert to number
+	var bufLength uint64
+	err := binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
 	if err != nil {
-		logp.Info("get length:%d, err:%v", int(bufLength), err)
-		return nil, common.SERVER_ERROR_STATUS, err
+		return 0, err
 	}
 
-	if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
-		return value_bytes[17:], common.CLIENT_ERROR_STATUS, nil
-	} else {
-		return value_bytes, common.OK_STATUS, nil
-	}
+	return int(bufLength), nil
 }

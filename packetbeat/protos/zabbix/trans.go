@@ -127,7 +127,14 @@ func (trans *transactions) onResponse(
 func (trans *transactions) tryMergeRequests(
 	prev, msg *message,
 ) (merged bool, err error) {
-	msg.isComplete = true
+	if len(msg.data) > 0 {
+		prev.data = append(prev.data, msg.data...)
+	}
+
+	if prev.length >= len(prev.data) {
+		msg.isComplete = true
+	}
+
 	return false, nil
 }
 
@@ -144,7 +151,7 @@ func (trans *transactions) correlate() error {
 	if requests.empty() {
 		for !responses.empty() {
 			msg := responses.pop()
-			logp.Warn("Response from unknown transaction. Ignoring %+v", msg)
+			logp.Warn("Response from unknown transaction. Ignoring %s", string(msg.data))
 		}
 		return nil
 	}
