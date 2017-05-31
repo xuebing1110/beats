@@ -158,7 +158,7 @@ func (p *parser) parse() (*message, error) {
 		msg.data = buf[13:]
 
 		// the part of whole message
-		if p.buf.BufferConsumed()+msg.length > len(buf) {
+		if msg.length+13 > len(buf) {
 			logp.Info("get a part of message: %s", string(msg.data))
 		} else {
 			logp.Info("get a whole message: %s", string(msg.data))
