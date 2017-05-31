@@ -146,7 +146,7 @@ func (p *parser) parse() (*message, error) {
 	msg := p.message
 
 	// the first packet
-	if bytes.Equal(buf, ZABBIX_HEADER_PREFIX) {
+	if bytes.HasPrefix(buf, ZABBIX_HEADER_PREFIX) {
 		// data length
 		data_len, err := getDataLength(buf[5:13])
 		if err != nil {
