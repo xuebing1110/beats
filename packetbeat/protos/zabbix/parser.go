@@ -139,31 +139,53 @@ func pred(b byte) bool {
 func (p *parser) parse() (*message, error) {
 	buf, err := p.buf.CollectWhile(pred)
 	if err != nil {
+		logp.Info("get %s from %d bytes,err:%v", string(buf), p.buf.Cap(), err)
 		return nil, err
 	}
-
-	//data
 
 	//msg type
 	msg := p.message
 	if bytes.Equal(buf, ZABBIX_RESP_PREFIX) {
-		data, status, err := getData(p.buf)
+		//length
+		var bufLength uint64
+		length_buf, err := p.buf.Collect(8)
 		if err != nil {
-			return msg, err
+			return nil, err
+		}
+		var reverseBuf = make([]byte, 8)
+		for i := 0; i < 8; i++ {
+			reverseBuf[i] = length_buf[7-i]
+		}
+		err = binary.Read(bytes.NewBuffer(reverseBuf), binary.BigEndian, &bufLength)
+		if err != nil {
+			return nil, err
 		}
 
-		msg.data = data
-		msg.status = status
+		//data
+		value_bytes, err := p.buf.Collect(int(bufLength))
+		if err != nil {
+			logp.Info("get length:%d, err:%v", int(bufLength), err)
+			return nil, err
+		}
 
-		if bytes.HasPrefix(data, ZBX_ACTIVEDATA_REQ_FREPFIX) {
+		if bytes.HasPrefix(value_bytes, ZBX_NOTSUPPORTED) {
+			msg.data = value_bytes[17:]
+			msg.status = common.CLIENT_ERROR_STATUS
+		} else {
+			msg.data = value_bytes
+			msg.status = common.OK_STATUS
+		}
+
+		//IsRequest and mode
+		if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_REQ_FREPFIX) {
 			msg.IsRequest = true
 			msg.passive = false
-		} else if bytes.HasPrefix(data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
+		} else if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
 			msg.IsRequest = false
 			msg.passive = false
 		} else {
-			msg.passive = true
 			msg.IsRequest = false
+			msg.passive = true
 		}
 	} else {
 		msg.IsRequest = true
@@ -206,6 +228,7 @@ func getData(buf streambuf.Buffer) ([]byte, string, error) {
 	//data
 	value_bytes, err := buf.Collect(int(bufLength))
 	if err != nil {
+		logp.Info("get length:%d, err:%v", int(bufLength), err)
 		return nil, common.SERVER_ERROR_STATUS, err
 	}
 
