@@ -103,6 +103,8 @@ func (pub *transPub) createEvents(requ, resp *message) []common.MapStr {
 				"responsetime": responseTime,
 				"ip":           itemdata.Host,
 				"item":         itemdata.Key,
+				"proxy":        itemdata_req.Host,
+				"proxyip":      requ.Tuple.SrcIP,
 			}
 
 			if itemdata.Status == 0 {

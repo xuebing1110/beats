@@ -139,7 +139,7 @@ func (trans *transactions) tryMergeRequests(
 	}
 
 	if len(prev.data) >= prev.length {
-		logp.Info("get whole message:: %d <=> %d : %s", prev.length, len(prev.data), string(prev.data))
+		// logp.Info("get whole message:: %d <=> %d : %s", prev.length, len(prev.data), string(prev.data))
 		prev.isComplete = true
 		return false, nil
 	} else {
