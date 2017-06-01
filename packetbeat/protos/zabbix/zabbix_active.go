@@ -11,11 +11,12 @@ type itemDataReq struct {
 }
 
 type itemData struct {
-	Host  string `json:"host"`
-	Key   string `json:"key"`
-	Clock int64  `json:"clock"`
-	Ns    int64  `json:"ns"`
-	Value string `json:"value"`
+	Host   string `json:"host"`
+	Key    string `json:"key"`
+	Clock  int64  `json:"clock"`
+	Ns     int64  `json:"ns"`
+	Value  string `json:"value"`
+	Status int    `json:"status"`
 }
 
 func Unmarshal(data []byte) (req *itemDataReq, err error) {

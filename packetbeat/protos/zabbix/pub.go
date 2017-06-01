@@ -105,8 +105,15 @@ func (pub *transPub) createEvents(requ, resp *message) []common.MapStr {
 				"item":         itemdata.Key,
 			}
 
-			value_type, value_content := getSchemaByZapi(pub.zapi, itemdata.Key, itemdata.Value)
-			event[value_type] = value_content
+			if itemdata.Status == 0 {
+				event["status"] = common.OK_STATUS
+				value_type, value_content := getSchemaByZapi(pub.zapi, itemdata.Key, itemdata.Value)
+				event[value_type] = value_content
+			} else {
+				event["status"] = common.CLIENT_ERROR_STATUS
+				event["notes"] = [1]string{itemdata.Value}
+			}
+
 			events = append(events, event)
 		}
 	}
