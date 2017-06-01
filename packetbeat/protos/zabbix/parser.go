@@ -162,29 +162,28 @@ func (p *parser) parse() (*message, error) {
 			logp.Info("get a part of message: %s", string(msg.data))
 		} else {
 			logp.Info("get a whole message: %s", string(msg.data))
-			msg.isComplete = true
 		}
 
 		// request or response
 		if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_REQ_FREPFIX) {
-			msg.passive = true
+			msg.passive = false
 			msg.IsRequest = true
 		} else if bytes.HasPrefix(msg.data, ZBX_ACTIVEDATA_RESP_FREPFIX) {
-			msg.passive = true
-			msg.IsRequest = true
-		} else {
 			msg.passive = false
+			msg.IsRequest = false
+		} else {
+			msg.passive = true
 			msg.IsRequest = false
 		}
 	} else if buf[len(buf)-1] == '\n' {
-		msg.IsRequest = true
 		msg.passive = true
+		msg.IsRequest = true
 		msg.data = buf[:len(buf)-1]
 		logp.Info("get passive request: %s", string(msg.data))
 	} else {
 		// the other parts of message
-		msg.IsRequest = true
 		msg.passive = false
+		msg.IsRequest = true
 		msg.data = buf
 		logp.Info("get a part of active request message: %s", string(msg.data))
 	}

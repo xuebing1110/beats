@@ -127,15 +127,24 @@ func (trans *transactions) onResponse(
 func (trans *transactions) tryMergeRequests(
 	prev, msg *message,
 ) (merged bool, err error) {
+	if prev == nil {
+		if msg.length >= len(msg.data) {
+			msg.isComplete = true
+		}
+		return false, nil
+	}
+
 	if len(msg.data) > 0 {
 		prev.data = append(prev.data, msg.data...)
 	}
 
 	if prev.length >= len(prev.data) {
-		msg.isComplete = true
+		logp.Info("get whole message:: %d <=> %d : %s", prev.length, len(prev.data), string(prev.data))
+		prev.isComplete = true
+		return false, nil
+	} else {
+		return true, nil
 	}
-
-	return false, nil
 }
 
 func (trans *transactions) tryMergeResponses(prev, msg *message) (merged bool, err error) {
